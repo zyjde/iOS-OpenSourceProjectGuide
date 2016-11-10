@@ -11,6 +11,7 @@ iOS知名的开源项目详解。
 -- 	
 ###MJRefresh
 
+- [MJRefresh代码的核心思想](https://github.com/Hunter-HYB/iOS-OpenSourceProjectGuide/blob/master/MJRefresh%E4%BB%A3%E7%A0%81%E7%9A%84%E6%A0%B8%E5%BF%83%E6%80%9D%E6%83%B3.md)
 - [MJRefresh源代码分析](https://github.com/Hunter-HYB/iOS-OpenSourceProjectGuide/blob/master/MJRefresh%E5%88%86%E6%9E%90.md)
 
 ###SDWebImage
