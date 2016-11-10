@@ -1,8 +1,7 @@
+##MJRefresh代码的核心思想
 ![image](https://github.com/Hunter-HYB/iOS-OpenSourceProjectGuide/blob/master/Resource/MJRefresh.png)
 
 上图为MJRefresh项目的项目结构
-
-###MJRefresh代码的核心思想
 
 在MJRefresh中，使用了KVO、runtime、继承、GCD等知识
 
