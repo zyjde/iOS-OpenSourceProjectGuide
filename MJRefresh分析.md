@@ -1,6 +1,10 @@
 ##MJRefresh分析
 
-我们开始使用MJRefresh的时候，往往都是几行代码就调用了，例如：
+上一篇分析了MJRefresh的框架结构和核心思想，现在选择最简单的一个分支来进行分析。
+
+MJRefreshNormalHeader -> MJRefreshStateHeader -> MJRefreshHeader -> MJRefreshComponent
+
+###一般开始使用MJRefresh的时候，往往都是几行代码就调用了，例如：
 
     MJRefreshNormalHeader *header = [MJRefreshNormalHeader headerWithRefreshingBlock:^{
         [self reloadData];
@@ -9,7 +13,7 @@
     self.tableView.mj_header = header;
 
 ###现在来看看，上面的几行代码到底经历着怎样的实现？              
-上面的代码，是创建了一个`MJRefreshNormalHeader `的对象，然后将它赋给了`self.tableView.mj_header`，`mj_header`是什么呢？我们找到`UIScrollView+MJRefresh.h`文件，可以看到这是一个分类
+上面的代码，是创建了一个`MJRefreshNormalHeader `的对象，然后将它赋给了`self.tableView.mj_header`，`mj_header`是什么呢？然后找到`UIScrollView+MJRefresh.h`文件，可以看到这是一个分类
 	
 	#import <UIKit/UIKit.h>
 	#import "MJRefreshConst.h"
@@ -63,7 +67,7 @@
 	}
 所以其实现在可以理解，`self.tableView.mj_header = header;`其实就是给tableview添加一个头部的刷新控件.而增加的属性`MJRefreshHeader `就是刚才创建的`MJRefreshNormalHeader `的基类。`MJRefreshHeader `继承于`MJRefreshComponent`, `MJRefreshComponent`是整个刷新控件的基类。
 
-我们创建了`MJRefreshNormalHeader `的对象，直接调用了一个类方法`headerWithRefreshingBlock`,这个方法是它父类`MJRefreshHeader `的一个方法
+创建了`MJRefreshNormalHeader `的对象，直接调用了一个类方法`headerWithRefreshingBlock`,这个方法是它父类`MJRefreshHeader `的一个方法
 
 	“MJRefreshHeader.m”文件
 	+ (instancetype)headerWithRefreshingBlock:(MJRefreshComponentRefreshingBlock)refreshingBlock
@@ -132,7 +136,7 @@
     	[self.pan addObserver:self forKeyPath:MJRefreshKeyPathPanState options:options context:nil];
 	}
 	
-利用KVO监听到之后，都会响应相应的didChange方法，比如我们下拉刷新，下拉必然会让contentOffSet发生变化，必然会响应对应的方法：
+利用KVO监听到之后，都会响应相应的didChange方法，比如下拉刷新，下拉必然会让contentOffSet发生变化，必然会响应对应的方法：
 
 	MJRefreshHeader文件
 	- (void)scrollViewContentOffsetDidChange:(NSDictionary *)change
@@ -184,7 +188,7 @@
         	self.pullingPercent = pullingPercent;
     	}
 	}
-上面的其实就是根据state的不同，进行相应的操作，然后更改state，在每一次更改state的时候，就发生了哪些变化呢，我们看看下面的方法
+上面的其实就是根据拖动的时候，scrollview的contentOffSet的变化进行state的设置：临界点就是scrollView的Inset.top与刷新控件的高度相加的值。进行相应的操作，然后更改state，在每一次更改state的时候，就发生了哪些变化呢，看看下面的方法
 
 	MJRefreshHeader文件
 	- (void)setState:(MJRefreshState)state
@@ -227,4 +231,88 @@
     	}
 	}
 
-执行setState方法的时候，进行了界面的操作。
+执行setState方法的时候，进行了界面的操作。如果是正常状态的时候，恢复inset和offset；如果是刷新状态，那就设置inset和offset，将scrollview的视图往下挤一点。
+
+再看看`MJRefreshNormalHeader`文件的实现
+
+	MJRefreshNormalHeader文件
+	#pragma mark - 重写父类的方法
+	- (void)prepare
+	{
+    	[super prepare];
+    
+    	self.activityIndicatorViewStyle = UIActivityIndicatorViewStyleGray;
+	}
+
+	- (void)placeSubviews
+	{
+    	[super placeSubviews];
+    
+    	// 箭头的中心点
+    	CGFloat arrowCenterX = self.mj_w * 0.5;
+    	if (!self.stateLabel.hidden) {
+        	CGFloat stateWidth = self.stateLabel.mj_textWith;
+        	CGFloat timeWidth = 0.0;
+        	if (!self.lastUpdatedTimeLabel.hidden) {
+            	timeWidth = self.lastUpdatedTimeLabel.mj_textWith;
+        	}
+        	CGFloat textWidth = MAX(stateWidth, timeWidth);
+        	arrowCenterX -= textWidth / 2 + self.labelLeftInset;
+    	}
+    	CGFloat arrowCenterY = self.mj_h * 0.5;
+    	CGPoint arrowCenter = CGPointMake(arrowCenterX, arrowCenterY);
+    
+    	// 箭头
+    	if (self.arrowView.constraints.count == 0) {
+        	self.arrowView.mj_size = self.arrowView.image.size;
+        	self.arrowView.center = arrowCenter;
+    	}
+        
+    	// 圈圈
+    	if (self.loadingView.constraints.count == 0) {
+        	self.loadingView.center = arrowCenter;
+    	}
+    
+    	self.arrowView.tintColor = self.stateLabel.textColor;
+	}
+
+	- (void)setState:(MJRefreshState)state
+	{
+    	MJRefreshCheckState
+    
+    	// 根据状态做事情
+    	if (state == MJRefreshStateIdle) {
+        	if (oldState == MJRefreshStateRefreshing) {
+            	self.arrowView.transform = CGAffineTransformIdentity;
+            
+            	[UIView animateWithDuration:MJRefreshSlowAnimationDuration animations:^{
+                	self.loadingView.alpha = 0.0;
+            	} completion:^(BOOL finished) {
+                	// 如果执行完动画发现不是idle状态，就直接返回，进入其他状态
+                	if (self.state != MJRefreshStateIdle) return;
+                
+                	self.loadingView.alpha = 1.0;
+                	[self.loadingView stopAnimating];
+                	self.arrowView.hidden = NO;
+            	}];
+        	} else {
+            	[self.loadingView stopAnimating];
+            	self.arrowView.hidden = NO;
+            	[UIView animateWithDuration:MJRefreshFastAnimationDuration animations:^{
+                	self.arrowView.transform = CGAffineTransformIdentity;
+           	 }];
+        	}
+    	} else if (state == MJRefreshStatePulling) {
+        	[self.loadingView stopAnimating];
+        	self.arrowView.hidden = NO;
+        	[UIView animateWithDuration:MJRefreshFastAnimationDuration animations:^{
+            	self.arrowView.transform = CGAffineTransformMakeRotation(0.000001 - M_PI);
+        	}];
+    	} else if (state == MJRefreshStateRefreshing) {
+        	self.loadingView.alpha = 1.0; // 防止refreshing -> idle的动画完毕动作没有被执行
+        	[self.loadingView startAnimating];
+        	self.arrowView.hidden = YES;
+    	}
+	}
+
+上面的placeSubviews方法设置了刷新控件的子控件的位置以及大小，然后setState方法就是更加具体的根据不同state来进行界面的变换：当state由刷新变为正常时，停止loadingView的动画，显示箭头；当state状态为Pulling的时候，箭头会发生变化，转个方向；当state为刷新时，loadingView开始动画，隐藏箭头。
