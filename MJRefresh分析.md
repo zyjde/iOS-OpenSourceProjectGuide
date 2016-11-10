@@ -29,7 +29,7 @@
 	@property (copy, nonatomic) void (^mj_reloadDataBlock)(NSInteger totalDataCount);
 	@end
 	
-作者利用runtime的技巧给这个分类添加了五个属性和一个方法，然后封装好的刷新控件添加给UIScrollview   
+作者利用runtime的技巧给这个分类添加了五个属性和一个方法，然后将封装好的刷新控件添加给UIScrollview   
 如果对runtime不熟悉的，可以查看我之前写的一篇文章 [runtime简要分析](https://github.com/Hunter-HYB/runtime)
 
 	- (void)setMj_header:(MJRefreshHeader *)mj_header
