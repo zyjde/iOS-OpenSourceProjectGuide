@@ -1,4 +1,5 @@
 ##MJRefresh分析
+![image](https://github.com/Hunter-HYB/iOS-OpenSourceProjectGuide/blob/master/Resource/MJRefresh.png)
 
 我们开始使用MJRefresh的时候，往往都是几行代码就调用了，例如：
 
